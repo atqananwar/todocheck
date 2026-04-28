@@ -23,16 +23,6 @@
       -webkit-tap-highlight-color: transparent;
       overscroll-behavior: none;
     }
-    :root {
-      --app-height: 100%;
-    }
-    html {
-      height: var(--app-height);
-    }
-    body {
-      height: var(--app-height);
-      max-height: var(--app-height);
-    }
     #splash {
       position: fixed; inset: 0; background: #1C1C1E;
       display: flex; flex-direction: column;
@@ -41,88 +31,195 @@
     }
     #splash.hidden { opacity: 0; pointer-events: none; }
     #splash-icon {
-      width: 80px; height: 80px; background: #0A84FF;
-      border-radius: 20px; display: flex;
-      align-items: center; justify-content: center; margin-bottom: 20px;
+      width: 100px; height: 100px;
+      border-radius: 22px; overflow: hidden;
+      margin-bottom: 20px; background: transparent;
     }
+    #splash-icon img { width: 100%; height: 100%; object-fit: cover; }
     #splash-title { font-family: -apple-system, sans-serif; font-size: 28px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
     #splash-sub { font-family: -apple-system, sans-serif; font-size: 14px; color: #8E8E93; margin-top: 6px; }
     @media (prefers-color-scheme: light) {
       html, body, #splash { background: #F2F2F7; }
       #splash-title { color: #1C1C1E; }
     }
+    #notif-prompt {
+      display: none; position: fixed; bottom: 80px; left: 16px; right: 16px;
+      background: #2C2C2E; border-radius: 16px; padding: 16px;
+      z-index: 8888; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      border: 0.5px solid rgba(255,255,255,0.1);
+    }
+    #notif-prompt.show { display: block; }
+    #notif-prompt h3 { color: #fff; font-size: 15px; font-weight: 600; margin-bottom: 6px; font-family: -apple-system, sans-serif; }
+    #notif-prompt p { color: #8E8E93; font-size: 13px; margin-bottom: 14px; font-family: -apple-system, sans-serif; }
+    #notif-prompt .btns { display: flex; gap: 8px; }
+    #notif-allow { flex: 1; background: #0A84FF; color: #fff; border: none; border-radius: 10px; padding: 10px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: -apple-system, sans-serif; }
+    #notif-deny { flex: 1; background: #3A3A3C; color: #fff; border: none; border-radius: 10px; padding: 10px; font-size: 14px; cursor: pointer; font-family: -apple-system, sans-serif; }
   </style>
 </head>
 <body>
   <div id="splash">
     <div id="splash-icon">
-      <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-        <rect x="6" y="8" width="22" height="4" rx="2" fill="white"/>
-        <rect x="6" y="16" width="18" height="4" rx="2" fill="white" opacity="0.7"/>
-        <rect x="6" y="24" width="14" height="4" rx="2" fill="white" opacity="0.5"/>
-        <circle cx="34" cy="30" r="8" fill="#30D158"/>
-        <path d="M30 30l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <img src="icons/Icon-192.png" alt="ToDoCheck" />
     </div>
     <div id="splash-title">ToDoCheck</div>
     <div id="splash-sub">Loading your tasks...</div>
   </div>
 
-    <script>
-    // iOS PWA viewport fix
-    function fixIOSViewport() {
-      const el = document.documentElement;
-      
-      // Force correct height
-      el.style.setProperty('--app-height', window.innerHeight + 'px');
-      
-      // Critical: scroll to top to reset any offset
-      window.scrollTo(0, 0);
-      document.body.scrollTop = 0;
-      
-      // Force repaint
-      document.body.style.display = 'none';
-      document.body.offsetHeight; // trigger reflow
-      document.body.style.display = '';
-      
+  <div id="notif-prompt">
+    <h3>🔔 Stay on track</h3>
+    <p>Allow notifications to get reminders for your tasks and deadlines.</p>
+    <div class="btns">
+      <button id="notif-allow">Allow</button>
+      <button id="notif-deny">Not now</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+    import { getMessaging, getToken, onMessage } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAoeSN1lDb-1sfhRvvLZey3s4w49QEVC8k",
+      authDomain: "todocheck-e5295.firebaseapp.com",
+      projectId: "todocheck-e5295",
+      storageBucket: "todocheck-e5295.firebasestorage.app",
+      messagingSenderId: "774333929403",
+      appId: "1:774333929403:web:511ef39c0299ca6f16d69e"
+    };
+
+    const VAPID_KEY = 'BOIHA6q3ziYlkYXbLJ1KLSMkVz1ZgHelyhk4VUpTfBV8Jd5IBQJzOwkFoCXAoQzxJLt-_S4UAah_v09ol5JaF3Q';
+    let messaging = null;
+
+    async function initFirebase() {
+      try {
+        const app = initializeApp(firebaseConfig);
+        messaging = getMessaging(app);
+        onMessage(messaging, (payload) => {
+          showInAppBanner(payload.notification?.title, payload.notification?.body);
+        });
+        window._fcmMessaging = messaging;
+      } catch (e) {
+        console.warn('Firebase init error:', e);
+      }
+    }
+
+    async function registerSW() {
+      if ('serviceWorker' in navigator) {
+        try {
+          await navigator.serviceWorker.register('/todocheck/firebase-messaging-sw.js', { scope: '/todocheck/' });
+        } catch (e) {
+          console.warn('SW registration failed:', e);
+        }
+      }
+    }
+
+    window.requestNotificationPermission = async function() {
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted' && messaging) {
+          const token = await getToken(messaging, { vapidKey: VAPID_KEY });
+          localStorage.setItem('fcmToken', token);
+          localStorage.setItem('notifGranted', 'true');
+          return token;
+        }
+        return null;
+      } catch (e) {
+        console.warn('Permission error:', e);
+        return null;
+      }
+    };
+
+    window.showInAppBanner = function(title, body) {
+      const banner = document.createElement('div');
+      banner.style.cssText = `
+        position: fixed; top: 20px; left: 16px; right: 16px;
+        background: #2C2C2E; border-radius: 14px; padding: 14px 16px;
+        z-index: 99999; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        border: 0.5px solid rgba(255,255,255,0.1);
+        font-family: -apple-system, sans-serif;
+        display: flex; align-items: flex-start; gap: 12px;
+      `;
+      banner.innerHTML = `
+        <span style="font-size:20px">🔔</span>
+        <div style="flex:1">
+          <div style="color:#fff;font-size:14px;font-weight:600;margin-bottom:2px">${title || 'ToDoCheck'}</div>
+          <div style="color:#8E8E93;font-size:12px">${body || ''}</div>
+        </div>
+        <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#8E8E93;font-size:18px;cursor:pointer;padding:0">×</button>
+      `;
+      document.body.appendChild(banner);
+      setTimeout(() => banner.remove(), 5000);
+    };
+
+    window.checkReminders = function() {
+      const reminders = JSON.parse(localStorage.getItem('todocheck_reminders') || '[]');
+      const now = new Date();
+      const due = [], keep = [];
+      for (const r of reminders) {
+        (new Date(r.time) <= now ? due : keep).push(r);
+      }
+      if (due.length > 0) {
+        localStorage.setItem('todocheck_reminders', JSON.stringify(keep));
+        for (const r of due) {
+          if (Notification.permission === 'granted') {
+            new Notification(`⏰ ${r.title}`, {
+              body: 'Task reminder from ToDoCheck',
+              icon: '/todocheck/icons/Icon-192.png',
+              badge: '/todocheck/icons/Icon-192.png',
+            });
+          } else {
+            window.showInAppBanner(`⏰ ${r.title}`, 'Task reminder from ToDoCheck');
+          }
+        }
+      }
+    };
+
+    function showNotifPrompt() {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default' && localStorage.getItem('notifDismissed') !== 'true') {
+        setTimeout(() => document.getElementById('notif-prompt')?.classList.add('show'), 3000);
+      }
+    }
+
+    document.getElementById('notif-allow').addEventListener('click', async () => {
+      document.getElementById('notif-prompt').classList.remove('show');
+      await window.requestNotificationPermission();
+    });
+
+    document.getElementById('notif-deny').addEventListener('click', () => {
+      document.getElementById('notif-prompt').classList.remove('show');
+      localStorage.setItem('notifDismissed', 'true');
+    });
+
+    function fixViewport() {
+      document.documentElement.style.height = window.innerHeight + 'px';
       window.dispatchEvent(new Event('resize'));
     }
 
-    // Run immediately
-    fixIOSViewport();
-    
-    // Run after everything loads
-    window.addEventListener('load', function() {
-      fixIOSViewport();
-      setTimeout(fixIOSViewport, 100);
-      setTimeout(fixIOSViewport, 500);
-      setTimeout(fixIOSViewport, 1000);
-    });
-
-    // Run when app resumes from background
-    document.addEventListener('visibilitychange', function() {
+    window.addEventListener('load', fixViewport);
+    document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
-        fixIOSViewport();
-        setTimeout(fixIOSViewport, 100);
-        setTimeout(fixIOSViewport, 300);
+        setTimeout(fixViewport, 50);
+        setTimeout(fixViewport, 200);
+        setTimeout(fixViewport, 500);
+        window.checkReminders?.();
       }
     });
+    window.addEventListener('pageshow', fixViewport);
+    window.addEventListener('focus', () => setTimeout(fixViewport, 100));
 
-    window.addEventListener('pageshow', fixIOSViewport);
-    window.addEventListener('focus', function() {
-      setTimeout(fixIOSViewport, 50);
-    });
-
-    window.addEventListener('flutter-first-frame', function() {
-      fixIOSViewport();
-      setTimeout(fixIOSViewport, 200);
+    window.addEventListener('flutter-first-frame', () => {
+      fixViewport();
       const s = document.getElementById('splash');
-      if (s) {
-        s.classList.add('hidden');
-        setTimeout(() => s.remove(), 500);
-      }
+      if (s) { s.classList.add('hidden'); setTimeout(() => s.remove(), 500); }
+      showNotifPrompt();
+      setInterval(window.checkReminders, 60000);
+      window.checkReminders?.();
     });
+
+    await registerSW();
+    await initFirebase();
   </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
