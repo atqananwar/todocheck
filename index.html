@@ -23,6 +23,16 @@
       -webkit-tap-highlight-color: transparent;
       overscroll-behavior: none;
     }
+    :root {
+      --app-height: 100%;
+    }
+    html {
+      height: var(--app-height);
+    }
+    body {
+      height: var(--app-height);
+      max-height: var(--app-height);
+    }
     #splash {
       position: fixed; inset: 0; background: #1C1C1E;
       display: flex; flex-direction: column;
@@ -58,27 +68,59 @@
     <div id="splash-sub">Loading your tasks...</div>
   </div>
 
-  <script>
-    // Fix iOS PWA viewport offset on resume
-    function fixViewport() {
-      document.documentElement.style.height = window.innerHeight + 'px';
+    <script>
+    // iOS PWA viewport fix
+    function fixIOSViewport() {
+      const el = document.documentElement;
+      
+      // Force correct height
+      el.style.setProperty('--app-height', window.innerHeight + 'px');
+      
+      // Critical: scroll to top to reset any offset
+      window.scrollTo(0, 0);
+      document.body.scrollTop = 0;
+      
+      // Force repaint
+      document.body.style.display = 'none';
+      document.body.offsetHeight; // trigger reflow
+      document.body.style.display = '';
+      
       window.dispatchEvent(new Event('resize'));
     }
-    window.addEventListener('load', fixViewport);
+
+    // Run immediately
+    fixIOSViewport();
+    
+    // Run after everything loads
+    window.addEventListener('load', function() {
+      fixIOSViewport();
+      setTimeout(fixIOSViewport, 100);
+      setTimeout(fixIOSViewport, 500);
+      setTimeout(fixIOSViewport, 1000);
+    });
+
+    // Run when app resumes from background
     document.addEventListener('visibilitychange', function() {
       if (!document.hidden) {
-        setTimeout(fixViewport, 50);
-        setTimeout(fixViewport, 200);
-        setTimeout(fixViewport, 500);
+        fixIOSViewport();
+        setTimeout(fixIOSViewport, 100);
+        setTimeout(fixIOSViewport, 300);
       }
     });
-    window.addEventListener('pageshow', fixViewport);
-    window.addEventListener('focus', function() { setTimeout(fixViewport, 100); });
+
+    window.addEventListener('pageshow', fixIOSViewport);
+    window.addEventListener('focus', function() {
+      setTimeout(fixIOSViewport, 50);
+    });
 
     window.addEventListener('flutter-first-frame', function() {
+      fixIOSViewport();
+      setTimeout(fixIOSViewport, 200);
       const s = document.getElementById('splash');
-      s.classList.add('hidden');
-      setTimeout(() => s.remove(), 500);
+      if (s) {
+        s.classList.add('hidden');
+        setTimeout(() => s.remove(), 500);
+      }
     });
   </script>
   <script src="flutter_bootstrap.js" async></script>
