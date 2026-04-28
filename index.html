@@ -16,31 +16,19 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root { --app-height: 100%; }
-    html {
-      height: var(--app-height);
-    }
+    html { height: var(--app-height); }
     body {
-      width: 100%;
-      height: var(--app-height);
-      max-height: var(--app-height);
-      background: #1C1C1E;
-      overflow: hidden;
-      position: fixed;
-      -webkit-tap-highlight-color: transparent;
-      overscroll-behavior: none;
+      width: 100%; height: var(--app-height); max-height: var(--app-height);
+      background: #1C1C1E; overflow: hidden; position: fixed;
+      -webkit-tap-highlight-color: transparent; overscroll-behavior: none;
     }
     #splash {
       position: fixed; inset: 0; background: #1C1C1E;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
       z-index: 9999; transition: opacity 0.4s ease;
     }
     #splash.hidden { opacity: 0; pointer-events: none; }
-    #splash-icon {
-      width: 100px; height: 100px;
-      border-radius: 22px; overflow: hidden;
-      margin-bottom: 20px; background: transparent;
-    }
+    #splash-icon { width: 100px; height: 100px; border-radius: 22px; overflow: hidden; margin-bottom: 20px; }
     #splash-icon img { width: 100%; height: 100%; object-fit: cover; }
     #splash-title { font-family: -apple-system, sans-serif; font-size: 28px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
     #splash-sub { font-family: -apple-system, sans-serif; font-size: 14px; color: #8E8E93; margin-top: 6px; }
@@ -58,15 +46,27 @@
     #notif-prompt h3 { color: #fff; font-size: 15px; font-weight: 600; margin-bottom: 6px; font-family: -apple-system, sans-serif; }
     #notif-prompt p { color: #8E8E93; font-size: 13px; margin-bottom: 14px; font-family: -apple-system, sans-serif; }
     #notif-prompt .btns { display: flex; gap: 8px; }
-    #notif-allow { flex: 1; background: #0A84FF; color: #fff; border: none; border-radius: 10px; padding: 10px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: -apple-system, sans-serif; }
-    #notif-deny { flex: 1; background: #3A3A3C; color: #fff; border: none; border-radius: 10px; padding: 10px; font-size: 14px; cursor: pointer; font-family: -apple-system, sans-serif; }
+    #notif-allow { flex: 1; background: #0A84FF; color: #fff; border: none; border-radius: 10px; padding: 10px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    #notif-deny { flex: 1; background: #3A3A3C; color: #fff; border: none; border-radius: 10px; padding: 10px; font-size: 14px; cursor: pointer; }
+    #notif-banner {
+      display: none; position: fixed; top: 16px; left: 16px; right: 16px;
+      background: #2C2C2E; border-radius: 14px; padding: 14px 16px;
+      z-index: 99999; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      border: 0.5px solid rgba(255,255,255,0.1);
+      font-family: -apple-system, sans-serif;
+      flex-direction: row; align-items: flex-start; gap: 12px;
+    }
+    #notif-banner.show { display: flex; }
+    #notif-banner-icon { font-size: 20px; }
+    #notif-banner-body { flex: 1; }
+    #notif-banner-title { color: #fff; font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+    #notif-banner-text { color: #8E8E93; font-size: 12px; }
+    #notif-banner-close { background: none; border: none; color: #8E8E93; font-size: 20px; cursor: pointer; padding: 0; }
   </style>
 </head>
 <body>
   <div id="splash">
-    <div id="splash-icon">
-      <img src="icons/Icon-192.png" alt="ToDoCheck" />
-    </div>
+    <div id="splash-icon"><img src="icons/Icon-192.png" alt="ToDoCheck"/></div>
     <div id="splash-title">ToDoCheck</div>
     <div id="splash-sub">Loading your tasks...</div>
   </div>
@@ -78,6 +78,15 @@
       <button id="notif-allow">Allow</button>
       <button id="notif-deny">Not now</button>
     </div>
+  </div>
+
+  <div id="notif-banner">
+    <span id="notif-banner-icon">🔔</span>
+    <div id="notif-banner-body">
+      <div id="notif-banner-title"></div>
+      <div id="notif-banner-text"></div>
+    </div>
+    <button id="notif-banner-close" onclick="document.getElementById('notif-banner').classList.remove('show')">×</button>
   </div>
 
   <script type="module">
@@ -92,7 +101,6 @@
       messagingSenderId: "774333929403",
       appId: "1:774333929403:web:511ef39c0299ca6f16d69e"
     };
-
     const VAPID_KEY = 'BOIHA6q3ziYlkYXbLJ1KLSMkVz1ZgHelyhk4VUpTfBV8Jd5IBQJzOwkFoCXAoQzxJLt-_S4UAah_v09ol5JaF3Q';
     let messaging = null;
 
@@ -101,94 +109,95 @@
         const app = initializeApp(firebaseConfig);
         messaging = getMessaging(app);
         onMessage(messaging, (payload) => {
-          showInAppBanner(payload.notification?.title, payload.notification?.body);
+          showBanner(payload.notification?.title, payload.notification?.body);
         });
-        window._fcmMessaging = messaging;
-      } catch (e) {
-        console.warn('Firebase init error:', e);
-      }
+      } catch (e) { console.warn('Firebase init:', e); }
     }
 
     async function registerSW() {
       if ('serviceWorker' in navigator) {
         try {
           await navigator.serviceWorker.register('/todocheck/firebase-messaging-sw.js', { scope: '/todocheck/' });
-        } catch (e) {
-          console.warn('SW registration failed:', e);
-        }
+          console.log('SW registered');
+        } catch (e) { console.warn('SW failed:', e); }
       }
     }
 
     window.requestNotificationPermission = async function() {
       try {
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted' && messaging) {
-          const token = await getToken(messaging, { vapidKey: VAPID_KEY });
-          localStorage.setItem('fcmToken', token);
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted') {
           localStorage.setItem('notifGranted', 'true');
-          return token;
+          if (messaging) {
+            const token = await getToken(messaging, { vapidKey: VAPID_KEY });
+            localStorage.setItem('fcmToken', token);
+            console.log('FCM Token:', token);
+          }
+          return true;
         }
-        return null;
-      } catch (e) {
-        console.warn('Permission error:', e);
-        return null;
-      }
+        return false;
+      } catch (e) { console.warn('Permission error:', e); return false; }
     };
 
-    window.showInAppBanner = function(title, body) {
-      const banner = document.createElement('div');
-      banner.style.cssText = `
-        position: fixed; top: 20px; left: 16px; right: 16px;
-        background: #2C2C2E; border-radius: 14px; padding: 14px 16px;
-        z-index: 99999; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-        border: 0.5px solid rgba(255,255,255,0.1);
-        font-family: -apple-system, sans-serif;
-        display: flex; align-items: flex-start; gap: 12px;
-      `;
-      banner.innerHTML = `
-        <span style="font-size:20px">🔔</span>
-        <div style="flex:1">
-          <div style="color:#fff;font-size:14px;font-weight:600;margin-bottom:2px">${title || 'ToDoCheck'}</div>
-          <div style="color:#8E8E93;font-size:12px">${body || ''}</div>
-        </div>
-        <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#8E8E93;font-size:18px;cursor:pointer;padding:0">×</button>
-      `;
-      document.body.appendChild(banner);
-      setTimeout(() => banner.remove(), 5000);
+    // Show in-app banner
+    window.showBanner = function(title, body) {
+      const banner = document.getElementById('notif-banner');
+      document.getElementById('notif-banner-title').textContent = title || 'ToDoCheck';
+      document.getElementById('notif-banner-text').textContent = body || '';
+      banner.classList.add('show');
+      setTimeout(() => banner.classList.remove('show'), 5000);
     };
 
+    // Check due reminders — reads from localStorage (same place Flutter writes)
     window.checkReminders = function() {
-      const reminders = JSON.parse(localStorage.getItem('todocheck_reminders') || '[]');
-      const now = new Date();
-      const due = [], keep = [];
-      for (const r of reminders) {
-        (new Date(r.time) <= now ? due : keep).push(r);
-      }
-      if (due.length > 0) {
-        localStorage.setItem('todocheck_reminders', JSON.stringify(keep));
-        for (const r of due) {
-          if (Notification.permission === 'granted') {
-            new Notification(`⏰ ${r.title}`, {
-              body: 'Task reminder from ToDoCheck',
-              icon: '/todocheck/icons/Icon-192.png',
-              badge: '/todocheck/icons/Icon-192.png',
-            });
-          } else {
-            window.showInAppBanner(`⏰ ${r.title}`, 'Task reminder from ToDoCheck');
+      try {
+        const raw = localStorage.getItem('todocheck_reminders');
+        if (!raw) return;
+        const reminders = JSON.parse(raw);
+        const now = new Date();
+        const due = [], keep = [];
+
+        for (const r of reminders) {
+          if (new Date(r.time) <= now) due.push(r);
+          else keep.push(r);
+        }
+
+        if (due.length > 0) {
+          localStorage.setItem('todocheck_reminders', JSON.stringify(keep));
+          for (const r of due) {
+            console.log('Firing reminder:', r.title);
+            if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+              try {
+                new Notification(r.title, {
+                  body: r.body || 'Reminder from ToDoCheck',
+                  icon: '/todocheck/icons/Icon-192.png',
+                  badge: '/todocheck/icons/Icon-192.png',
+                  tag: r.id,
+                });
+              } catch (e) {
+                // iOS Safari fallback
+                window.showBanner(r.title, r.body);
+              }
+            } else {
+              window.showBanner(r.title, r.body);
+            }
           }
         }
-      }
+      } catch (e) { console.warn('checkReminders error:', e); }
     };
 
     function showNotifPrompt() {
-      if (typeof Notification !== 'undefined' && Notification.permission === 'default' && localStorage.getItem('notifDismissed') !== 'true') {
+      if (typeof Notification !== 'undefined' &&
+          Notification.permission === 'default' &&
+          localStorage.getItem('notifDismissed') !== 'true') {
         setTimeout(() => document.getElementById('notif-prompt')?.classList.add('show'), 3000);
       }
     }
 
     document.getElementById('notif-allow').addEventListener('click', async () => {
       document.getElementById('notif-prompt').classList.remove('show');
-      await window.requestNotificationPermission();
+      const granted = await window.requestNotificationPermission();
+      if (granted) window.showBanner('Notifications enabled! 🎉', 'You will now receive task reminders.');
     });
 
     document.getElementById('notif-deny').addEventListener('click', () => {
@@ -196,8 +205,8 @@
       localStorage.setItem('notifDismissed', 'true');
     });
 
-    // iOS PWA viewport fix
-    function fixIOSViewport() {
+    // iOS viewport fix
+    function fixViewport() {
       const h = window.innerHeight;
       document.documentElement.style.setProperty('--app-height', h + 'px');
       document.documentElement.style.height = h + 'px';
@@ -209,35 +218,28 @@
       window.dispatchEvent(new Event('resize'));
     }
 
-    fixIOSViewport();
-
-    window.addEventListener('load', () => {
-      fixIOSViewport();
-      setTimeout(fixIOSViewport, 100);
-      setTimeout(fixIOSViewport, 500);
-      setTimeout(fixIOSViewport, 1000);
-    });
-
+    fixViewport();
+    window.addEventListener('load', () => { fixViewport(); setTimeout(fixViewport, 100); setTimeout(fixViewport, 500); setTimeout(fixViewport, 1000); });
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
-        fixIOSViewport();
-        setTimeout(fixIOSViewport, 100);
-        setTimeout(fixIOSViewport, 300);
-        window.checkReminders?.();
+        fixViewport();
+        setTimeout(fixViewport, 100);
+        setTimeout(fixViewport, 300);
+        window.checkReminders();
       }
     });
-
-    window.addEventListener('pageshow', fixIOSViewport);
-    window.addEventListener('focus', () => setTimeout(fixIOSViewport, 50));
+    window.addEventListener('pageshow', fixViewport);
+    window.addEventListener('focus', () => setTimeout(fixViewport, 50));
 
     window.addEventListener('flutter-first-frame', () => {
-      fixIOSViewport();
-      setTimeout(fixIOSViewport, 200);
+      fixViewport();
+      setTimeout(fixViewport, 200);
       const s = document.getElementById('splash');
       if (s) { s.classList.add('hidden'); setTimeout(() => s.remove(), 500); }
       showNotifPrompt();
-      setInterval(window.checkReminders, 60000);
-      window.checkReminders?.();
+      // Check every 30 seconds for more accurate reminders
+      setInterval(window.checkReminders, 30000);
+      window.checkReminders();
     });
 
     await registerSW();
