@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/todocheck/">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ToDoCheck">
+  <meta name="theme-color" content="#1C1C1E">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  <title>ToDoCheck</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #1C1C1E;
+      overflow: hidden;
+      position: fixed;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: none;
+    }
+    #splash {
+      position: fixed; inset: 0; background: #1C1C1E;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 9999; transition: opacity 0.4s ease;
+    }
+    #splash.hidden { opacity: 0; pointer-events: none; }
+    #splash-icon {
+      width: 80px; height: 80px; background: #0A84FF;
+      border-radius: 20px; display: flex;
+      align-items: center; justify-content: center; margin-bottom: 20px;
+    }
+    #splash-title { font-family: -apple-system, sans-serif; font-size: 28px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+    #splash-sub { font-family: -apple-system, sans-serif; font-size: 14px; color: #8E8E93; margin-top: 6px; }
+    @media (prefers-color-scheme: light) {
+      html, body, #splash { background: #F2F2F7; }
+      #splash-title { color: #1C1C1E; }
+    }
+  </style>
+</head>
+<body>
+  <div id="splash">
+    <div id="splash-icon">
+      <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+        <rect x="6" y="8" width="22" height="4" rx="2" fill="white"/>
+        <rect x="6" y="16" width="18" height="4" rx="2" fill="white" opacity="0.7"/>
+        <rect x="6" y="24" width="14" height="4" rx="2" fill="white" opacity="0.5"/>
+        <circle cx="34" cy="30" r="8" fill="#30D158"/>
+        <path d="M30 30l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div id="splash-title">ToDoCheck</div>
+    <div id="splash-sub">Loading your tasks...</div>
+  </div>
+
+  <script>
+    // Fix iOS PWA viewport offset on resume
+    function fixViewport() {
+      document.documentElement.style.height = window.innerHeight + 'px';
+      window.dispatchEvent(new Event('resize'));
+    }
+    window.addEventListener('load', fixViewport);
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden) {
+        setTimeout(fixViewport, 50);
+        setTimeout(fixViewport, 200);
+        setTimeout(fixViewport, 500);
+      }
+    });
+    window.addEventListener('pageshow', fixViewport);
+    window.addEventListener('focus', function() { setTimeout(fixViewport, 100); });
+
+    window.addEventListener('flutter-first-frame', function() {
+      const s = document.getElementById('splash');
+      s.classList.add('hidden');
+      setTimeout(() => s.remove(), 500);
+    });
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
