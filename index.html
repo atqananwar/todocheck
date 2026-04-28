@@ -15,8 +15,14 @@
   <title>ToDoCheck</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      width: 100%; height: 100%;
+    :root { --app-height: 100%; }
+    html {
+      height: var(--app-height);
+    }
+    body {
+      width: 100%;
+      height: var(--app-height);
+      max-height: var(--app-height);
       background: #1C1C1E;
       overflow: hidden;
       position: fixed;
@@ -190,25 +196,43 @@
       localStorage.setItem('notifDismissed', 'true');
     });
 
-    function fixViewport() {
-      document.documentElement.style.height = window.innerHeight + 'px';
+    // iOS PWA viewport fix
+    function fixIOSViewport() {
+      const h = window.innerHeight;
+      document.documentElement.style.setProperty('--app-height', h + 'px');
+      document.documentElement.style.height = h + 'px';
+      window.scrollTo(0, 0);
+      document.body.scrollTop = 0;
+      document.body.style.display = 'none';
+      document.body.offsetHeight;
+      document.body.style.display = '';
       window.dispatchEvent(new Event('resize'));
     }
 
-    window.addEventListener('load', fixViewport);
+    fixIOSViewport();
+
+    window.addEventListener('load', () => {
+      fixIOSViewport();
+      setTimeout(fixIOSViewport, 100);
+      setTimeout(fixIOSViewport, 500);
+      setTimeout(fixIOSViewport, 1000);
+    });
+
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
-        setTimeout(fixViewport, 50);
-        setTimeout(fixViewport, 200);
-        setTimeout(fixViewport, 500);
+        fixIOSViewport();
+        setTimeout(fixIOSViewport, 100);
+        setTimeout(fixIOSViewport, 300);
         window.checkReminders?.();
       }
     });
-    window.addEventListener('pageshow', fixViewport);
-    window.addEventListener('focus', () => setTimeout(fixViewport, 100));
+
+    window.addEventListener('pageshow', fixIOSViewport);
+    window.addEventListener('focus', () => setTimeout(fixIOSViewport, 50));
 
     window.addEventListener('flutter-first-frame', () => {
-      fixViewport();
+      fixIOSViewport();
+      setTimeout(fixIOSViewport, 200);
       const s = document.getElementById('splash');
       if (s) { s.classList.add('hidden'); setTimeout(() => s.remove(), 500); }
       showNotifPrompt();
